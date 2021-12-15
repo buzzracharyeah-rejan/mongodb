@@ -141,3 +141,88 @@ db.friends.aggregate([
     },
   },
 ]);
+
+//? use buckets
+db.persons.aggregate([
+  {
+    $bucket: {
+      groupBy: '$dob.age',
+      boundaries: [0, 18, 30, 45, 60, 80],
+      output: { count: { $sum: 1 }, avgAge: { $avg: '$dob.age' } },
+    },
+  },
+]);
+
+db.persons.aggregate([
+  {
+    $bucketAuto: {
+      groupBy: '$dob.age',
+      buckets: 5,
+      output: { count: { $sum: 1 }, avgAge: { $avg: '$dob.age' } },
+    },
+  },
+]);
+
+db.persons.aggregate([
+  { $match: { gender: 'male' } },
+  {
+    $project: {
+      fullname: { $concat: ['$name.first', ' ', '$name.last'] },
+      date: { $toDate: '$dob.date' },
+      location: {
+        type: 'Point',
+        coordinates: [
+          {
+            $convert: {
+              input: '$location.coordinates.longitude',
+              to: 'double',
+            },
+          },
+          {
+            $convert: { input: '$location.coordinates.latitude', to: 'double' },
+          },
+        ],
+      },
+    },
+  },
+  { $project: { fullname: 1, date: 1, location: 1 } },
+  { $sort: { dob: 1 } },
+  { $skip: 10 },
+  { $limit: 10 },
+  { $out: 'pipeData' },
+]);
+
+db.persons.aggregate([
+  { $match: { gender: 'male' } },
+  { $project: { name: 1, gender: 1, uuid: 1 } },
+  { $skip: 10 },
+  { $limit: 10 },
+]);
+
+//? use the geospatial query to find the location
+db.pipeData.findOne({
+  location: {
+    $near: {
+      $geometry: { type: 'Point', coordinates: [-7.3847, 58.6443] },
+      $minDistance: 0,
+      $maxDistance: 0,
+    },
+  },
+});
+
+//? usage of geoNear operator
+db.pipeData.aggregate([
+  {
+    $geoNear: {
+      near: {
+        type: 'Point',
+        coordinates: [-68.8352, 61.8618],
+      },
+      distanceField: 'dist.calculated',
+      maxDistance: 10000,
+      query: {},
+    },
+  },
+]);
+
+db.testData.insertMany([{ a: NumberDecimal('0.2'), b: NumberDecimal('0.4') }]);
